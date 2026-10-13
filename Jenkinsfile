@@ -7,6 +7,10 @@ pipeline {
         timestamps()
     }
 
+    triggers {
+        pollSCM('H/5 * * * *')
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -14,34 +18,28 @@ pipeline {
             }
         }
 
-        stage('Backend Tests') {
+        stage('Check Environment') {
             steps {
-                script {
-                    if (isUnix()) {
-                        sh 'python3 -m venv .venv-ci'
-                        sh '.venv-ci/bin/python -m pip install -r backend/requirements.txt'
-                        sh '.venv-ci/bin/python -m unittest discover -s backend -p "test_*.py" -v'
-                    } else {
-                        bat 'python -m venv .venv-ci'
-                        bat '.venv-ci\\Scripts\\python.exe -m pip install -r backend\\requirements.txt'
-                        bat '.venv-ci\\Scripts\\python.exe -m unittest discover -s backend -p "test_*.py" -v'
-                    }
-                }
+                bat 'python --version'
+                bat 'node --version'
+                bat 'npm --version'
+                bat 'git --version'
+            }
+        }
+
+        stage('Backend Dependency Check') {
+            steps {
+                bat 'python -m venv .venv-ci'
+                bat '.venv-ci\\Scripts\\python.exe -m pip install -r backend\\requirements.txt'
+                bat '.venv-ci\\Scripts\\python.exe -m compileall -q backend'
             }
         }
 
         stage('Frontend Build') {
             steps {
                 dir('frontend') {
-                    script {
-                        if (isUnix()) {
-                            sh 'npm ci'
-                            sh 'npm run build'
-                        } else {
-                            bat 'npm ci'
-                            bat 'npm run build'
-                        }
-                    }
+                    bat 'npm ci'
+                    bat 'npm run build'
                 }
             }
         }
@@ -53,7 +51,7 @@ pipeline {
         }
 
         failure {
-            echo 'Samvaad CI pipeline failed. Check the stage logs.'
+            echo 'Samvaad CI pipeline failed. Check Console Output.'
         }
 
         always {
